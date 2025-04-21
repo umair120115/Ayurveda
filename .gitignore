@@ -2,9 +2,9 @@
 .vscode
 
 #Ignoring env files 
-.env
+env
 ayurveda/
-
+*.env
 __pycache__/
 
 
