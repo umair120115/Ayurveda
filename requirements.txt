@@ -1,0 +1,10 @@
+fastapi[standard]
+uvicorn 
+motor
+python-dotenv
+pydantic
+sentence-transformers 
+torch
+passlib[bvcrypt] 
+
+# python-multipart is needed for OAuth2PasswordRequestForm is used for enabling OAuth authentication

@@ -1,0 +1,10 @@
+#ignoring IDE files
+.vscode
+
+#Ignoring env files 
+
+ayurveda/
+
+__pycache__/
+
+
