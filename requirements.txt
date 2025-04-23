@@ -6,5 +6,7 @@ pydantic
 sentence-transformers 
 torch
 passlib[bvcrypt] 
+phonenumbers
+fastapi-cache2[redis]
 
 # python-multipart is needed for OAuth2PasswordRequestForm is used for enabling OAuth authentication

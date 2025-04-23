@@ -1,10 +1,12 @@
 # app/models.py
-from pydantic import BaseModel, Field, EmailStr, ConfigDict, SecretStr, StringConstraints,field_validator,ValidationError
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, SecretStr, StringConstraints,field_validator,ValidationError,WithJsonSchema
 from typing import Optional, List, Annotated
 from bson import ObjectId
 from datetime import datetime,timezone
 import enum
-from datetime import date ,datetime
+from datetime import date ,datetime,time,timezone
+import phonenumbers
+import uuid
 
 
 # --- ObjectId Helper ---
@@ -110,63 +112,136 @@ class TokenData(BaseModel): # Internal model for JWT payload data
 # You might need models like DocumentChunkCreate, DocumentChunkInDB, SearchQuery here as well
 # if you implement the vector search endpoints in the same application.
 # Define them based on previous examples if required.
-# import phonenumbers
-# PyObjectId= Annotated[ObjectId,Field(alias='_id')]
-# class Store(BaseModel):
-#     id: Optional[PyObjectId]=None
-#     name:str=Field(description="Name of the store/restuarant.")
-#     address : str=Field(description="Address of the store.")
-#     store_lat :int=Field(description="Latitude of the store.")
-#     store_long:int=Field(description="Longitude of store.")
-#     postalcode: str=Field(description="Postal code of the store.")
-#     owner_id: ObjectId=Field(description="The id of the user which is registering for store.")
-#     created_at: Optional[datetime]=Field(default_factory=lambda : datetime.now(timezon))
-#     opening_time: str=Field(description="Opening time of store/restuarant.")
-#     closing_time: str=Field(description="Closing time of store/restuarant.")
-#     is_active:bool=True
-#     store_description: str=Field(description="Berief description of store/restuarant.")
-#     contact: str=Field(description="Contact phone number of store.")
-#     @field_validator('contact')
-#     @classmethod
-#     def validate_phone_number(cls, v: str) -> str:
-#         """Validate the phone number using the phonenumbers library."""
-#         if not v:
-#             raise ValueError('Phone number cannot be empty')
-#         try:
-#             # Attempt to parse the number.
-#             # You might want to specify a default region (e.g., 'IN' for India based on your location)
-#             # This helps parse numbers that aren't in full E.164 format (e.g., local numbers)
-#             # If you expect numbers from anywhere, you might omit region or handle it dynamically.
-#             parsed_number = phonenumbers.parse(v, "IN") # Using "IN" for India as default region
+import uuid
 
-#             # Check if the number is possible and valid
-#             if not phonenumbers.is_possible_number(parsed_number):
-#                  raise ValueError(f"'{v}' is not a possible phone number format.")
-#             if not phonenumbers.is_valid_number(parsed_number):
-#                 raise ValueError(f"'{v}' is not a valid phone number.")
+class StoreType(str,enum.Enum):
+    """ Different types of stores or types of bussiness partners we are going to link."""
+    RESTUARANT='restuarant'
+    DHABA='dhaba'
+    STORE='store'
+    SWEETS_STORE='sweets-store'
+    VEGETABLE_STORE='vegetable-store'
+    DAIRY='dairy'
+    CLOTHES_STORE='clothes-store'
+    GROCERY_STORE='grocery-store'
+class Store(BaseModel):
+    storeid: uuid.UUID=Field(default_factory=uuid.uuid4, ) #creating unique storeid and it is required
+    name: str
+    email: EmailStr
+    store_type: StoreType = Field(default=StoreType.RESTUARANT,description="Type of bussiness they are running and type of their product they are selling.") #type of store it is
+    address: str
+    store_lat: float
+    store_lang: float
+    postalcode: str
+    owner_id: PyObjectId # Correctly typed required field  --> need to be confirmed!
+    created_at: datetime=Field(default_factory=lambda : datetime.now(timezone.utc))  #now it will match with the type hint 
+    opening_time: time 
+    closing_time: time 
+    is_active: bool=True
+    store_description: str
+    contact: str
 
-#             # Optionally, format to a standard format like E.164 before storing
-#             # E.164 format is '+[country code][subscriber number]' e.g., +919876543210
-#             formatted_number = phonenumbers.format_number(
-#                 parsed_number,
-#                 phonenumbers.PhoneNumberFormat.E164
-#             )
-#             return formatted_number
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()}
+    )
 
-#         except phonenumbers.NumberParseException as e:
-#             # Re-raise as ValueError for Pydantic
-#             raise ValueError(f"Failed to parse phone number '{v}': {e}") from e
-#         except Exception as e:
-#              # Catch any other unexpected errors during validation
-#             raise ValueError(f"An error occurred during phone number validation for '{v}': {e}") from e
+# PyObjectId= Annotated[ObjectId,WithJsonSchema({'type': 'string', 'example': '662508e9318b9a3e4f7b4e83'})]  #This tells that this field will be used as _id like primary key
+class StoreCreate(BaseModel):
+    name: str = Field(description="Name of the store/restuarant.")
+    email : EmailStr=Field(description="Unique email for store.")
+    store_type: StoreType
+    address: str = Field(description="Address of the store.")
+    store_lat: float = Field(description="Latitude of the store.")
+    store_lang: float = Field(description="Longitude of store.")
+    postalcode: str = Field(description="Postal code of the store.")
+    opening_time: time = Field(description="Opening time...")
+    closing_time: time = Field(description="Closing time...")
+    store_description: str = Field(description="Brief description...")
+    contact: str = Field(description="Contact phone number...")
+
+    @field_validator('contact')
+    @classmethod
+    def validate_phone_number(cls, v: str) -> str:
+        """Validate the phone number using the phonenumbers library."""
+        if not v:
+            raise ValueError('Phone number cannot be empty')
+        try:
+            # Attempt to parse the number.
+            # You might want to specify a default region (e.g., 'IN' for India based on your location)
+            # This helps parse numbers that aren't in full E.164 format (e.g., local numbers)
+            # If you expect numbers from anywhere, you might omit region or handle it dynamically.
+            parsed_number = phonenumbers.parse(v, "IN") # Using "IN" for India as default region
+
+            # Check if the number is possible and valid
+            if not phonenumbers.is_possible_number(parsed_number):
+                 raise ValueError(f"'{v}' is not a possible phone number format.")
+            if not phonenumbers.is_valid_number(parsed_number):
+                raise ValueError(f"'{v}' is not a valid phone number.")
+
+            # Optionally, format to a standard format like E.164 before storing
+            # E.164 format is '+[country code][subscriber number]' e.g., +919876543210
+            formatted_number = phonenumbers.format_number(
+                parsed_number,
+                phonenumbers.PhoneNumberFormat.E164
+            )
+            return formatted_number
+
+        except phonenumbers.NumberParseException as e:
+            # Re-raise as ValueError for Pydantic
+            raise ValueError(f"Failed to parse phone number '{v}': {e}") from e
+        except Exception as e:
+             # Catch any other unexpected errors during validation
+            raise ValueError(f"An error occurred during phone number validation for '{v}': {e}") from e
 
 
 
 
 
 
-#     model_config = ConfigDict(
-#         populate_by_name=True, # Allows reading MongoDB's '_id' field
-#         arbitrary_types_allowed=True, # Allows custom types like ObjectId
-#         json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()} # How to serialize to JSON
-#     )
+    model_config = ConfigDict(
+        populate_by_name=True, # Allows reading MongoDB's '_id' field
+        arbitrary_types_allowed=True, # Allows custom types like ObjectId
+        json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()} # How to serialize to JSON
+    )
+
+class Products(BaseModel):
+    productid : uuid.UUID = Field(default_factory=uuid.uuid4)
+    product_name: str
+    store: PyObjectId
+    price: float
+    discounted_price: float
+    description: str
+    stock: int
+    image_url:str
+    
+    pass
+
+
+
+
+
+#---  RAG and Centralized DB ---#
+
+class TopicList(BaseModel):
+    topics: List[str] = Field(description="A list of research topics to process.")
+    # Optional: Add a field to specify the source, if needed
+    # source_identifier: Optional[str] = Field(default=None, description="Identifier for the source of these topics")
+
+class ProcessResponse(BaseModel):
+    message: str
+    topics_received: int
+
+class QueryRequest(BaseModel):
+    query: str = Field(description="The user's question to ask the RAG system.")
+    top_k: int = Field(default=3, description="Number of relevant chunks to retrieve.")
+
+class RetrievedChunk(BaseModel):
+    text: str
+    source: Optional[str] = None
+    score: Optional[float] = None
+
+class QueryResponse(BaseModel):
+    answer: str
+    retrieved_chunks: Optional[List[RetrievedChunk]] = None

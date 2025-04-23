@@ -1,0 +1,95 @@
+# docker-compose.yml (Milvus and Redis only)
+
+version: '3.8'
+
+volumes:
+  milvus-etcd:
+  milvus-minio:
+  milvus-data:
+  redis-data: # Optional volume for Redis persistence
+
+# Network definition (optional if only these services, but good practice)
+networks:
+  internal_net:
+
+services:
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    networks:
+      - internal_net
+    ports:
+      - "6379:6379" # Expose Redis port 6379 to the host
+    volumes:
+      - redis-data:/data # Optional: Persist Redis data
+    restart: unless-stopped
+
+  # Milvus Standalone Dependencies (etcd, MinIO) & Milvus
+  etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.5
+    networks:
+      - internal_net
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - milvus-etcd:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    restart: unless-stopped
+
+  minio:
+    container_name: milvus-minio
+    image: quay.io/minio/minio:RELEASE.2023-03-20T20-16-18Z
+    networks:
+      - internal_net
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus-minio:/minio_data
+    command: minio server /minio_data
+    ports: # Optional: Expose MinIO UI/API port if needed
+      - "9001:9000" # Host port 9001 maps to container port 9000 (changed to avoid conflict if host uses 9000)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  milvus-standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.5.6 # Use a specific stable version
+    networks:
+      - internal_net
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379       # Connects to etcd service within Docker network
+      MINIO_ADDRESS: minio:9000      # Connects to minio service within Docker network
+    volumes:
+      - milvus-data:/var/lib/milvus
+    ports:
+      - "19530:19530" # Expose Milvus SDK port 19530 to the host
+      - "9091:9091"   # Expose Milvus Proxy port 9091 to the host (optional)
+    depends_on:
+      - etcd
+      - minio
+    restart: unless-stopped
+
+  attu:
+    container_name: attu_gui
+    image: zilliz/attu:latest # Use the latest official Attu image
+    networks:
+      - internal_net # Connect Attu to the same network as Milvus
+    ports:
+      - "8001:3000" # Map host port 8000 to Attu's default port 8000
+    environment:
+      # Tell Attu how to connect to the Milvus service within the Docker network
+      - MILVUS_URL=http://milvus-standalone:19530
+    depends_on:
+      - milvus-standalone # Ensure Milvus starts before Attu
+    restart: unless-stopped
