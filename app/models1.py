@@ -213,10 +213,32 @@ class Products(BaseModel):
     price: float
     discounted_price: float
     description: str
-    stock: int
-    image_url:str
-    
-    pass
+    image_url:list
+    in_stock:bool=True
+    created_at: datetime=Field(default_factory=lambda : datetime.now(timezone.utc))
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()}
+    )
+class ProductsCreate(BaseModel):
+    product_name: str=Field(description="Name of the product.")
+    price: float=Field(description="The price of product.")
+    discounted_price: float=Field(description="The price at which product will be given to consumer.")
+    description:str=Field(description="Some key details of the product.")
+    image_url : list=Field(description="Urls of the images of the product.")
+
+model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()}
+    )
+
+
+
+
+
 
 
 

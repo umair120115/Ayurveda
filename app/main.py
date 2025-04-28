@@ -12,7 +12,7 @@ import uuid
 #importing from other files
 from database import connect_to_mongo,close_mongo_connection,get_collection
 from models1 import (
-    UserCreate, UserPublic, UserInDB, UserUpdate, Token, PyObjectId,Store,StoreCreate,TopicList, ProcessResponse, QueryRequest, QueryResponse, RetrievedChunk
+    UserCreate, UserPublic, UserInDB, UserUpdate, Token, PyObjectId,Store,StoreCreate,TopicList, ProcessResponse, QueryRequest, QueryResponse, RetrievedChunk,Products,ProductsCreate
 )
 # from .security import get_password_hash
 from security import get_password_hash
@@ -44,13 +44,13 @@ from langchain_groq import ChatGroq # Or specific LLM class
 
 
 # -- Lifespan Manager ----
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     """Handles startup and shutdown events."""
-#     print("INFO: Starting up Application\n")
-#     await connect_to_mongo()
-#     yield
-#     await close_mongo_connection()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handles startup and shutdown events."""
+    print("INFO: Starting up Application\n")
+    await connect_to_mongo()
+    yield
+    await close_mongo_connection()
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -63,53 +63,53 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 app_state: Dict[str, Any] = {}
 
 # --- Modified Lifespan Manager ---
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Handles startup and shutdown events."""
-    logging.info("INFO: Starting up Application")
-    # Connect to MongoDB (existing)
-    await connect_to_mongo()
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     """Handles startup and shutdown events."""
+#     logging.info("INFO: Starting up Application")
+#     # Connect to MongoDB (existing)
+#     await connect_to_mongo()
 
-    # Initialize Pipeline Components
-    logging.info("INFO: Initializing Pipeline Components...")
-    try:
-        # Initialize LLM
-        app_state["llm"] = initialize_llm()
-        # Initialize Embedding Model
-        app_state["embeddings_model"] = initialize_embedding_model()
-        # Initialize Agent Executor (needs LLM)
-        app_state["agent_executor"] = initialize_agent_executor(app_state["llm"])
-        # Initialize Text Splitter
-        app_state["text_splitter"] = initialize_text_splitter()
-        # Setup Milvus Connection and Collection
-        logging.info("INFO: Setting up Milvus connection and collection...")
-        milvus_collection = setup_milvus_collection()
-        app_state["milvus_collection"] = milvus_collection
-        logging.info("INFO: Pipeline components initialized successfully.")
+#     # Initialize Pipeline Components
+#     logging.info("INFO: Initializing Pipeline Components...")
+#     try:
+#         # Initialize LLM
+#         app_state["llm"] = initialize_llm()
+#         # Initialize Embedding Model
+#         app_state["embeddings_model"] = initialize_embedding_model()
+#         # Initialize Agent Executor (needs LLM)
+#         app_state["agent_executor"] = initialize_agent_executor(app_state["llm"])
+#         # Initialize Text Splitter
+#         app_state["text_splitter"] = initialize_text_splitter()
+#         # Setup Milvus Connection and Collection
+#         logging.info("INFO: Setting up Milvus connection and collection...")
+#         milvus_collection = setup_milvus_collection()
+#         app_state["milvus_collection"] = milvus_collection
+#         logging.info("INFO: Pipeline components initialized successfully.")
 
-    except Exception as e:
-        logging.critical(f"CRITICAL: Failed to initialize pipeline components during startup: {e}", exc_info=True)
-        # Optionally raise the error to prevent startup if components are essential
-        # raise RuntimeError("Failed to initialize critical pipeline components") from e
-        app_state["pipeline_initialized"] = False # Flag initialization failure
-    else:
-        app_state["pipeline_initialized"] = True
+#     except Exception as e:
+#         logging.critical(f"CRITICAL: Failed to initialize pipeline components during startup: {e}", exc_info=True)
+#         # Optionally raise the error to prevent startup if components are essential
+#         # raise RuntimeError("Failed to initialize critical pipeline components") from e
+#         app_state["pipeline_initialized"] = False # Flag initialization failure
+#     else:
+#         app_state["pipeline_initialized"] = True
 
-    yield # Application runs here
+#     yield # Application runs here
 
-    # --- Shutdown ---
-    logging.info("INFO: Shutting down Application")
-    # Disconnect Milvus
-    try:
-        logging.info("INFO: Disconnecting from Milvus...")
-        if connections.has_connection(CONNECTION_ALIAS):
-            connections.disconnect(CONNECTION_ALIAS)
-            logging.info("INFO: Milvus connection closed.")
-    except Exception as e:
-        logging.warning(f"WARN: Error disconnecting from Milvus: {e}")
-    # Close MongoDB connection (existing)
-    await close_mongo_connection()
-    logging.info("INFO: Application shutdown complete.")
+#     # --- Shutdown ---
+#     logging.info("INFO: Shutting down Application")
+#     # Disconnect Milvus
+#     try:
+#         logging.info("INFO: Disconnecting from Milvus...")
+#         if connections.has_connection(CONNECTION_ALIAS):
+#             connections.disconnect(CONNECTION_ALIAS)
+#             logging.info("INFO: Milvus connection closed.")
+#     except Exception as e:
+#         logging.warning(f"WARN: Error disconnecting from Milvus: {e}")
+#     # Close MongoDB connection (existing)
+#     await close_mongo_connection()
+#     logging.info("INFO: Application shutdown complete.")
 
 
 
@@ -485,13 +485,25 @@ async def registering_store(store_data:StoreCreate, current_user:Annotated[UserI
     
 
 #--- Getting all stores which are active ----#
-@app.get("/all/stores/",response_model=Store, tags=["Stores management"])
+@app.get("/all/stores/",response_model=List[Store], tags=["Stores management"])
 async def get_all_stores(current_user:Annotated[UserInDB,Depends(get_current_active_user)]):
     stores_collection=get_collection(STORES_COLLECTION)
+    stores_active= stores_collection.find({"is_active":True})
+    stores_list=await stores_active.to_list(length=None)
+    return stores_list
 
 
-    pass
     
+
+PRODUCT_COLLECTION="products"
+
+
+@app.post("/product/add/",response_model=Products,tags=["Products"])
+async def add_product(product_add:  ProductsCreate,current_user:Annotated[UserInDB,Depends(get_current_active_user)]):
+    products_collection=get_collection(PRODUCT_COLLECTION)
+    
+     
+
 
 
 
