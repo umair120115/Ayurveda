@@ -7,13 +7,25 @@ volumes:
   milvus-minio:
   milvus-data:
   redis-data: # Optional volume for Redis persistence
+  # ollama:
 
 # Network definition (optional if only these services, but good practice)
 networks:
   internal_net:
 
 services:
-  # Redis Cache
+  # ollama:
+  #   image: ollama/ollama
+  #   container_name: llama_container
+  #   command: >
+  #     sh -c "ollama run llama3"
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama:/root/.ollama
+  #   restart: unless-stopped
+
+  
   redis:
     image: redis:7-alpine
     container_name: redis_cache
@@ -93,3 +105,6 @@ services:
     depends_on:
       - milvus-standalone # Ensure Milvus starts before Attu
     restart: unless-stopped
+
+  
+  

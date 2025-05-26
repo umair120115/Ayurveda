@@ -21,9 +21,10 @@ logging.info("Loaded environment variables.")
 
 # --- Configuration (can be accessed via os.getenv directly where needed) ---
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama3-8b-8192")
+# LLM_MODEL_NAME='llama3'
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-mpnet-base-v2")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-GROQ_API_TOKEN = os.getenv("GROQ_API_TOKEN","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")
+GROQ_API_TOKEN = os.getenv("GROQ_API_TOKEN","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")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1000))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 100))
 VECTOR_DIMENSION = int(os.getenv("VECTOR_DIMENSION", 768)) # Make sure this matches the embedding model
@@ -33,36 +34,36 @@ CONNECTION_ALIAS = os.getenv("CONNECTION_ALIAS", "default")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "rag_documents")
 
 # --- Component Initialization Functions ---
-
-def initialize_llm():
+LLAMA_URL=os.getenv('OLAMA_URL')
+import httpx
+async def initialize_llm():
     """Initializes and returns the ChatGroq LLM."""
-    if not GROQ_API_TOKEN:
-        raise ValueError("GROQ_API_TOKEN not found in environment variables.")
+    # if not LLAMA_URL:
+        # raise ValueError("Inference server not found! Try running in OLAMA using command ollama pull llama3.")
     # Set environment variable for the library if needed
     os.environ["GROQ_API_KEY"] = GROQ_API_TOKEN
     try:
-        llm = ChatGroq(temperature=0, model_name=LLM_MODEL_NAME, streaming=True)
-        logging.info(f"Initialized LLM: {LLM_MODEL_NAME}")
-        return llm
+        llm = ChatGroq(temperature=0, model_name=LLM_MODEL_NAME, streaming=True)  #initialize LLM
+        # playload={
+        #     "model":"llama3",
+        #     "prompt":"What's your name?",
+        #     "stream":False
+        # }
+        async with httpx.AsyncClient() as client:
+            response= await client
+        # response= await httpx.AsyncClient().post(LLAMA_URL,json=playload)
+        # result = response.json()
+        
+        # logging.info(f"Initialized LLM: {LLM_MODEL_NAME}- status-{result.get('response')}")
+
+        # return result.get('response')
     except Exception as e:
         logging.error(f"Error initializing LLM: {e}")
         raise
 
-# def initialize_embedding_model():
-#     """Initializes and returns the Sentence Transformer embedding model."""
-#     try:
-#         model = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
-#         # Verify dimension matches config (optional but good)
-#         actual_dim = model.client.get_sentence_embedding_dimension() # Access SentenceTransformer object inside
-#         if actual_dim != VECTOR_DIMENSION:
-#              logging.warning(f"Model dimension ({actual_dim}) != configured dimension ({VECTOR_DIMENSION}). Check config.")
-#              # Decide whether to raise error or proceed
-#              # raise ValueError("Embedding dimension mismatch")
-#         logging.info(f"Initialized Embedding Model: {EMBEDDING_MODEL_NAME} (Dim: {actual_dim})")
-#         return model
-#     except Exception as e:
-#         logging.error(f"Error initializing Embedding Model: {e}")
-#         raise
+
+
+
 def initialize_embedding_model():
     """Initializes and returns the Sentence Transformer embedding model."""
     try:
@@ -248,8 +249,7 @@ def run_pipeline_for_topic(
             logging.warning("   Agent did not return valid string data ('output' field). Skipping topic.")
             return False
         logging.info("   Data extraction complete.")
-        # Log extracted data snippet for debugging if needed
-        # logging.debug(f"   Extracted data snippet: {collected_data[:200]}...")
+       
     except Exception as e:
         logging.error(f"   Error during agent execution for topic '{topic}': {e}")
         return False

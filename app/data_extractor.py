@@ -2,19 +2,20 @@ from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.tools import TavilySearchResults
-from langchain_groq import ChatGroq
+from langchain_groq import ChatGroq ########################
 from langchain_huggingface import HuggingFaceEmbeddings
 from dotenv import load_dotenv
+from langchain_community.llms import ollama
 import os
 load_dotenv()
 TAVILY_API_KEY=os.getenv("TAVILY_API_KEY")
-
+llm=ollama(model="llama3:8b", base_url="http://localhost:11434/")
 GROQ_API_TOKEN = "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"
 GROQ_API_TOKEN = os.getenv("GROQ_API_TOKEN")
 os.environ["GROQ_API_KEY"] = "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"
 llm = ChatGroq(temperature=0, model_name="llama3-8b-8192",streaming=True)
 
-tavily_tool = TavilySearchResults(max_results=5)
+tavily_tool = TavilySearchResults(max_results=5)  # if increased then will rise costs  will think about selenium automation
 tools = [tavily_tool]
 
 prompt_template = """

@@ -8,7 +8,6 @@ from pymongo.errors import DuplicateKeyError
 from datetime import datetime,timedelta
 from bson.objectid import ObjectId
 import uuid
-
 #importing from other files
 from database import connect_to_mongo,close_mongo_connection,get_collection
 from models1 import (
@@ -19,7 +18,7 @@ from security import get_password_hash
 from auth import (
     create_access_token,authenticate_user,get_current_active_user,ACCESS_TOKEN_EXPIRE_TIMES,get_current_user
 )
-
+import httpx
 from dotenv import load_dotenv
 from pipeline import ( # Import initialization functions and core logic
     initialize_llm,
@@ -37,20 +36,16 @@ from langchain.agents import AgentExecutor
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings # Or specific embedding class
 from langchain_groq import ChatGroq # Or specific LLM class
-# from .auth import (
-    # create_access_token,authenticate_user,get_current_active_user,ACCESS_TOKEN_EXPIRE_TIMES,get_current_user
-# )
 
 
-
-# -- Lifespan Manager ----
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Handles startup and shutdown events."""
-    print("INFO: Starting up Application\n")
-    await connect_to_mongo()
-    yield
-    await close_mongo_connection()
+# -- Lifespan Manager ---- for Store Application
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     """Handles startup and shutdown events."""
+#     print("INFO: Starting up Application\n")
+#     await connect_to_mongo()
+#     yield
+#     await close_mongo_connection()
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -62,54 +57,54 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # --- Global State for Initialized Components ---
 app_state: Dict[str, Any] = {}
 
-# --- Modified Lifespan Manager ---
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     """Handles startup and shutdown events."""
-#     logging.info("INFO: Starting up Application")
-#     # Connect to MongoDB (existing)
-#     await connect_to_mongo()
+# --- Modified Lifespan Manager --- for Ayurveda, lifespan function!
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handles startup and shutdown events."""
+    logging.info("INFO: Starting up Application")
+    # Connect to MongoDB (existing)
+    await connect_to_mongo()
 
-#     # Initialize Pipeline Components
-#     logging.info("INFO: Initializing Pipeline Components...")
-#     try:
-#         # Initialize LLM
-#         app_state["llm"] = initialize_llm()
-#         # Initialize Embedding Model
-#         app_state["embeddings_model"] = initialize_embedding_model()
-#         # Initialize Agent Executor (needs LLM)
-#         app_state["agent_executor"] = initialize_agent_executor(app_state["llm"])
-#         # Initialize Text Splitter
-#         app_state["text_splitter"] = initialize_text_splitter()
-#         # Setup Milvus Connection and Collection
-#         logging.info("INFO: Setting up Milvus connection and collection...")
-#         milvus_collection = setup_milvus_collection()
-#         app_state["milvus_collection"] = milvus_collection
-#         logging.info("INFO: Pipeline components initialized successfully.")
+    # Initialize Pipeline Components
+    logging.info("INFO: Initializing Pipeline Components...")
+    try:
+        # Initialize LLM
+        app_state["llm"] =  initialize_llm()
+        # Initialize Embedding Model
+        app_state["embeddings_model"] =  initialize_embedding_model()
+        # Initialize Agent Executor (needs LLM)
+        app_state["agent_executor"] =await  initialize_agent_executor(app_state["llm"])
+        # Initialize Text Splitter
+        app_state["text_splitter"] =  initialize_text_splitter()
+        # Setup Milvus Connection and Collection
+        logging.info("INFO: Setting up Milvus connection and collection...")
+        milvus_collection = setup_milvus_collection()
+        app_state["milvus_collection"] = milvus_collection
+        logging.info("INFO: Pipeline components initialized successfully.")
 
-#     except Exception as e:
-#         logging.critical(f"CRITICAL: Failed to initialize pipeline components during startup: {e}", exc_info=True)
-#         # Optionally raise the error to prevent startup if components are essential
-#         # raise RuntimeError("Failed to initialize critical pipeline components") from e
-#         app_state["pipeline_initialized"] = False # Flag initialization failure
-#     else:
-#         app_state["pipeline_initialized"] = True
+    except Exception as e:
+        logging.critical(f"CRITICAL: Failed to initialize pipeline components during startup: {e}", exc_info=True)
+        # Optionally raise the error to prevent startup if components are essential
+        # raise RuntimeError("Failed to initialize critical pipeline components") from e
+        app_state["pipeline_initialized"] = False # Flag initialization failure
+    else:
+        app_state["pipeline_initialized"] = True
 
-#     yield # Application runs here
+    yield # Application runs here
 
 #     # --- Shutdown ---
-#     logging.info("INFO: Shutting down Application")
-#     # Disconnect Milvus
-#     try:
-#         logging.info("INFO: Disconnecting from Milvus...")
-#         if connections.has_connection(CONNECTION_ALIAS):
-#             connections.disconnect(CONNECTION_ALIAS)
-#             logging.info("INFO: Milvus connection closed.")
-#     except Exception as e:
-#         logging.warning(f"WARN: Error disconnecting from Milvus: {e}")
-#     # Close MongoDB connection (existing)
-#     await close_mongo_connection()
-#     logging.info("INFO: Application shutdown complete.")
+    logging.info("INFO: Shutting down Application")
+    # Disconnect Milvus
+    try:
+        logging.info("INFO: Disconnecting from Milvus...")
+        if connections.has_connection(CONNECTION_ALIAS):
+            connections.disconnect(CONNECTION_ALIAS)
+            logging.info("INFO: Milvus connection closed.")
+    except Exception as e:
+        logging.warning(f"WARN: Error disconnecting from Milvus: {e}")
+    # Close MongoDB connection (existing)
+    await close_mongo_connection()
+    logging.info("INFO: Application shutdown complete.")
 
 
 
@@ -495,12 +490,12 @@ async def get_all_stores(current_user:Annotated[UserInDB,Depends(get_current_act
 
     
 
-PRODUCT_COLLECTION="products"
+# PRODUCT_COLLECTION="products"
 
 
-@app.post("/product/add/",response_model=Products,tags=["Products"])
-async def add_product(product_add:  ProductsCreate,current_user:Annotated[UserInDB,Depends(get_current_active_user)]):
-    products_collection=get_collection(PRODUCT_COLLECTION)
+# @app.post("/product/add/",response_model=Products,tags=["Products"])
+# async def add_product(product_add:  ProductsCreate,current_user:Annotated[UserInDB,Depends(get_current_active_user)]):
+#     products_collection=get_collection(PRODUCT_COLLECTION)
     
      
 

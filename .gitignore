@@ -1,5 +1,8 @@
 #ignoring IDE files
 .vscode
+venv
+scrapy
+
 
 #Ignoring env files 
 env
