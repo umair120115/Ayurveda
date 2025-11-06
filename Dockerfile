@@ -1,6 +1,6 @@
 # === Stage 1: Build Stage ===
 # Use a full Python image to build dependencies
-FROM python:3.11 as builder
+FROM python:3.12 as builder
 
 WORKDIR /app
 
