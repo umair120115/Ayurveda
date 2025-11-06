@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # === Stage 2: Final Stage ===
 # Use a minimal, secure "slim" image for the final product
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
