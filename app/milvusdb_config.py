@@ -1,8 +1,8 @@
 from pymilvus import connections, utility, Collection, FieldSchema, CollectionSchema, DataType
 
 # Define connection parameters
-MILVUS_HOST = "localhost" # Or "127.0.0.1"
-MILVUS_PORT = "19530"
+MILVUS_HOST = os.getenv("MILVUS_HOST",'localhost')#"localhost" # Or "127.0.0.1"
+MILVUS_PORT = os.getenv("MILVUS_PORT","19530")#"19530"
 CONNECTION_ALIAS = "default" # Default alias
 
 try:

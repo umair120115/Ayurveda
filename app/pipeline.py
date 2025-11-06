@@ -20,11 +20,11 @@ load_dotenv()
 logging.info("Loaded environment variables.")
 
 # --- Configuration (can be accessed via os.getenv directly where needed) ---
-LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama3-8b-8192")
+LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama-3.1-8b-instant")
 # LLM_MODEL_NAME='llama3'
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-mpnet-base-v2")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-GROQ_API_TOKEN = os.getenv("GROQ_API_TOKEN","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")
+GROQ_API_TOKEN = os.getenv("GROQ_API_TOKEN")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1000))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 100))
 VECTOR_DIMENSION = int(os.getenv("VECTOR_DIMENSION", 768)) # Make sure this matches the embedding model
@@ -44,6 +44,7 @@ async def initialize_llm():
     os.environ["GROQ_API_KEY"] = GROQ_API_TOKEN
     try:
         llm = ChatGroq(temperature=0, model_name=LLM_MODEL_NAME, streaming=True)  #initialize LLM
+        return llm
         # playload={
         #     "model":"llama3",
         #     "prompt":"What's your name?",
@@ -245,6 +246,7 @@ def run_pipeline_for_topic(
         # Use the passed agent_executor instance
         search_results = agent_executor_instance.invoke({"input": topic})
         collected_data = search_results.get('output')
+        print(f"{collected_data}\n")
         if not collected_data or not isinstance(collected_data, str):
             logging.warning("   Agent did not return valid string data ('output' field). Skipping topic.")
             return False
@@ -301,10 +303,10 @@ def run_pipeline_for_topic(
         logging.info(f"   Successfully inserted {insert_result.insert_count} entities.")
 
         # Optional: Flush data immediately
-        # start_flush = time.time()
-        # milvus_collection.flush()
-        # end_flush = time.time()
-        # logging.info(f"   Data flushed in {end_flush - start_flush:.2f} seconds.")
+        start_flush = time.time()
+        milvus_collection.flush()
+        end_flush = time.time()
+        logging.info(f"   Data flushed in {end_flush - start_flush:.2f} seconds.")
 
     except Exception as e:
         logging.error(f"   Error inserting data into Milvus for topic '{topic}': {e}")

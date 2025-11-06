@@ -64,22 +64,26 @@ async def lifespan(app: FastAPI):
     logging.info("INFO: Starting up Application")
     # Connect to MongoDB (existing)
     await connect_to_mongo()
+    print(f"MongoDb connected successfully\n")
+    # await setup_milvus_collection()
+    # print(f"Milvus DB connected Successfully\n")
 
     # Initialize Pipeline Components
     logging.info("INFO: Initializing Pipeline Components...")
     try:
         # Initialize LLM
-        app_state["llm"] =  initialize_llm()
+        app_state["llm"] = await  initialize_llm()
         # Initialize Embedding Model
         app_state["embeddings_model"] =  initialize_embedding_model()
         # Initialize Agent Executor (needs LLM)
-        app_state["agent_executor"] =await  initialize_agent_executor(app_state["llm"])
+        app_state["agent_executor"] = initialize_agent_executor(app_state["llm"])
         # Initialize Text Splitter
-        app_state["text_splitter"] =  initialize_text_splitter()
+        app_state["text_splitter"] =   initialize_text_splitter()
         # Setup Milvus Connection and Collection
         logging.info("INFO: Setting up Milvus connection and collection...")
         milvus_collection = setup_milvus_collection()
-        app_state["milvus_collection"] = milvus_collection
+        app_state["milvus_collection"] =  milvus_collection
+        print(f"Milvus DB connected Successfully\n")
         logging.info("INFO: Pipeline components initialized successfully.")
 
     except Exception as e:
